@@ -135,7 +135,7 @@ mod tests {
     // Helper struct for Drop test
     #[derive(Clone)]
     struct DropTracker {
-        id: usize, // Optional: helps debugging
+        _id: usize, // Optional: helps debugging
         counter: Arc<AtomicUsize>,
     }
     impl Drop for DropTracker {
@@ -185,7 +185,7 @@ mod tests {
             // Initialize elements safely if possible, otherwise unsafe write
             for i in 0..numel {
                 let tracker = DropTracker {
-                    id: i,
+                    _id: i,
                     counter: counter.clone(),
                 };
                 // IMPORTANT: Need unsafe write because storage is uninitialized
@@ -193,6 +193,7 @@ mod tests {
                     std::ptr::write(storage.as_mut_ptr().add(i), tracker);
                 }
             }
+
             assert_eq!(storage.len(), numel);
             assert_eq!(counter.load(Ordering::SeqCst), 0);
         } // storage drops here
