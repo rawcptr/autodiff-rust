@@ -186,9 +186,9 @@ mod tests {
 
     #[test]
     fn test_alignment() {
-        let s_f32 = Storage::<f32>::new(100);
-        let s_u8 = Storage::<u8>::new(100);
-        let s_u64 = Storage::<u64>::new(100);
+        let s_f32 = Storage::<f32>::uninitialized(100);
+        let s_u8 = Storage::<u8>::uninitialized(100);
+        let s_u64 = Storage::<u64>::uninitialized(100);
 
         assert_eq!(s_f32.as_ptr() as usize % Storage::<f32>::ALIGN, 0);
         assert_eq!(s_u8.as_ptr() as usize % Storage::<u8>::ALIGN, 0);
@@ -200,7 +200,7 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
         let numel = 10;
         {
-            let mut storage: Storage<DropTracker> = Storage::new(numel);
+            let mut storage: Storage<DropTracker> = Storage::uninitialized(numel);
             // Initialize elements safely if possible, otherwise unsafe write
             for i in 0..numel {
                 let tracker = DropTracker {
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn test_data_integrity() {
         let numel = 10;
-        let mut storage = Storage::<i32>::new(numel);
+        let mut storage = Storage::<i32>::uninitialized(numel);
         // Write data
         for i in 0..numel {
             unsafe {
