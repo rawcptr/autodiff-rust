@@ -33,7 +33,7 @@ impl<T> Tensor<T> {
         &self.storage
     }
 
-    pub fn shape(&mut self) -> &Shape {
+    pub fn shape(&self) -> &Shape {
         &self.shape
     }
 
