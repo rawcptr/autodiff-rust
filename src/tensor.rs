@@ -113,7 +113,26 @@ impl<T, const N0: usize, const N1: usize> Tensorizable<T> for [[T; N1]; N0] {
         let buf: Vec<T> = self.into_iter().flatten().collect();
         let storage = Storage::new(buf.len(), buf);
 
-        storage.initialize_from_iter(buf);
+        Ok(Tensor {
+            storage,
+            shape,
+            requires_grad: false,
+            grad: None,
+        })
+    }
+}
+
+impl<T, const N0: usize, const N1: usize, const N2: usize> Tensorizable<T> for [[[T; N2]; N1]; N0] {
+    fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
+        let shape = (N0, N1, N2).into();
+
+        // initialize storage
+        let buf: Vec<_> = self
+            .into_iter()
+            .flat_map(|v| v.into_iter().flatten())
+            .collect();
+
+        let storage = Storage::new(buf.len(), buf);
 
         Ok(Tensor {
             storage,
