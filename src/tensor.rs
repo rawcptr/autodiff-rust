@@ -39,14 +39,14 @@ impl<T> Tensorizable<T> for Vec<Vec<T>> {
     }
 }
 
-fn check_dims_3d<T>(data: &[Vec<Vec<T>>]) -> Result<Shape, TensorError> {
+fn check_vec_3d<T>(data: &[Vec<Vec<T>>]) -> Result<Shape, TensorError> {
     if data.is_empty() {
         return Ok((0, 0, 0).into());
     }
     let planes = data.len();
 
     let expected_rows = data[0].len();
-    let expected_columns = data[0].first().map_or(0, Vec::len);
+    let expected_columns = data[0].first().map_or(0, |c| c.len());
 
     for plane in data.iter() {
         let actual_rows = plane.len();
@@ -73,7 +73,7 @@ fn check_dims_3d<T>(data: &[Vec<Vec<T>>]) -> Result<Shape, TensorError> {
 
 impl<T> Tensorizable<T> for Vec<Vec<Vec<T>>> {
     fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
-        let shape = check_dims_3d(&self)?;
+        let shape = check_vec_3d(&self)?;
 
         // initialize storage
         let buf: Vec<_> = self
@@ -103,19 +103,7 @@ pub struct Tensor<T> {
 }
 
 impl<T> Tensor<T> {
-    
-    // copies the elements from the container into the
-    // pub fn new(container: Vec<T>) -> Self {
-    //     let mut storage = Storage::<T>::new(container.len());
-
-    //     let shape: Shape = shape.into();
-    //     storage.initialize_from_iter(container);
-
-    //     Self {
-    //         storage,
-    //         shape,
-    //         requires_grad: false,
-    //         grad: None,
-    //     }
-    // }
+    pub fn new(data: impl Tensorizable<T>) -> Result<Self, TensorError> {
+        data.to_tensor()
+    }
 }
