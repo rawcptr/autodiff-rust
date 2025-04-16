@@ -86,7 +86,7 @@ impl<T> Storage<T> {
         self.len
     }
 
-    pub(crate) fn initialize_from_iter<C>(&mut self, container: C)
+    fn initialize_from_iter<C>(&mut self, container: C)
     where
         C: IntoIterator<Item = T>,
     {
