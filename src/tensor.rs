@@ -80,8 +80,38 @@ impl<T> Tensorizable<T> for Vec<Vec<Vec<T>>> {
             .into_iter()
             .flat_map(|v| v.into_iter().flatten())
             .collect();
-        
-        let mut storage = Storage::<T>::new(buf.len());
+
+        let storage = Storage::new(buf.len(), buf);
+
+        Ok(Tensor {
+            storage,
+            shape,
+            requires_grad: false,
+            grad: None,
+        })
+    }
+}
+
+impl<T, const N: usize> Tensorizable<T> for [T; N] {
+    fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
+        let shape = Shape::from(self.len());
+        let storage = Storage::new(self.len(), self);
+
+        Ok(Tensor {
+            storage,
+            shape,
+            requires_grad: false,
+            grad: None,
+        })
+    }
+}
+
+impl<T, const N0: usize, const N1: usize> Tensorizable<T> for [[T; N1]; N0] {
+    fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
+        let shape = (N0, N1).into();
+
+        let buf: Vec<T> = self.into_iter().flatten().collect();
+        let storage = Storage::new(buf.len(), buf);
 
         storage.initialize_from_iter(buf);
 
