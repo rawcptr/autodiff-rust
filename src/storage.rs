@@ -102,7 +102,6 @@ impl<T> Storage<T> {
                 Some(item) => unsafe { std::ptr::write(self.as_mut_ptr().add(count), item) },
                 None => return,
             }
-
         }
 
         if iter.next().is_some() {
