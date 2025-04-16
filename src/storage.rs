@@ -27,7 +27,13 @@ impl<T> Storage<T> {
     ///
     /// Panics if allocation fails or if the calculated layout is invalid.
     #[must_use]
-    pub fn new(numel: usize) -> Self {
+    pub fn new(size: usize, container: impl IntoIterator<Item = T>) -> Self {
+        let mut storage = Self::uninitialized(size);
+        storage.initialize_from_iter(container);
+        storage
+    }
+
+    pub fn uninitialized(numel: usize) -> Self {
         // align padding for avx2
 
         let size = align_to::<T>(numel, Self::ALIGN);
@@ -156,16 +162,16 @@ mod tests {
     #[test]
     fn test_allocation_deallocation() {
         // Test various types and sizes
-        let _s1 = Storage::<f32>::new(10);
-        let _s2 = Storage::<u8>::new(128);
-        let _s3 = Storage::<()>::new(5); // ZST via unit type
-        let _s4 = Storage::<ZeroSizedType>::new(20);
+        let _s1 = Storage::<f32>::uninitialized(10);
+        let _s2 = Storage::<u8>::uninitialized(128);
+        let _s3 = Storage::<()>::uninitialized(5); // ZST via unit type
+        let _s4 = Storage::<ZeroSizedType>::uninitialized(20);
         // Just letting them drop is the test (miri checks dealloc)
     }
 
     #[test]
     fn test_zero_elements() {
-        let s = Storage::<f32>::new(0);
+        let s = Storage::<f32>::new(0, vec![]);
         assert_eq!(s.len(), 0);
         assert_eq!(s.layout.size(), 0);
         // Miri checks drop behavior
