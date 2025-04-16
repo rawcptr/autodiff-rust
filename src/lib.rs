@@ -7,4 +7,5 @@ mod storage;
 mod tensor;
 mod tensorizable;
 
+pub use tensorizable::Tensorizable;
 pub use tensor::Tensor;
