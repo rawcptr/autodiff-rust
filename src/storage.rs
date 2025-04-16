@@ -91,6 +91,7 @@ impl<T> Storage<T> {
         C: IntoIterator<Item = T>,
     {
         let mut iter = container.into_iter();
+
         for count in 0..self.len {
             // SAFETY:
             // 1. `i` is strictly less than `self.len()`, ensuring the pointer is in bounds.
@@ -103,6 +104,7 @@ impl<T> Storage<T> {
             }
 
         }
+
         if iter.next().is_some() {
             panic!("iterator yielded more items that storage can fit");
         }
