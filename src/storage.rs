@@ -1,4 +1,8 @@
-use std::{alloc::Layout, marker::PhantomData, ptr::NonNull};
+use std::{
+    alloc::Layout,
+    marker::PhantomData,
+    ptr::{self, NonNull},
+};
 
 /// Raw, aligned heap storage for elements of type `T`.
 ///
