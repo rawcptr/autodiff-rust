@@ -1,5 +1,6 @@
 use std::{fmt::Display, ops::Index};
 
+#[derive(Debug, Clone)]
 pub struct Shape(Vec<usize>);
 
 impl From<(usize, usize, usize)> for Shape {
@@ -52,6 +53,17 @@ impl Shape {
     #[inline]
     pub fn dims(&self) -> &[usize] {
         &self.0
+    }
+
+    #[inline]
+    pub fn linear_index<const D: usize>(&self, indices: [usize; D]) -> usize {
+        debug_assert!(indices.len() == self.0.len());
+
+        indices
+            .iter()
+            .zip(&self.0)
+            .try_fold(0, |acc, (dim, i)| (i < dim).then_some(acc * dim + i))
+            .expect("invalid indices")
     }
 }
 
