@@ -4,6 +4,8 @@ use std::{
     ptr::{self, NonNull},
 };
 
+use crate::error::TensorError;
+
 /// Raw, aligned heap storage for elements of type `T`.
 ///
 /// Owns the allocated memory and handles dropping elements and deallocation.
@@ -49,7 +51,16 @@ impl<T> Storage<T> {
             let layout = Layout::from_size_align(size, Self::ALIGN)
                 .expect("layout creation should have valid alignment and length");
 
+            // SAFETY:
+            // - Layout is valid from Layout::size_align
+            // - alloc() -> null is acceptable. we just panic.
             let ptr = unsafe { std::alloc::alloc(layout) };
+            if ptr.is_null() {
+                panic!("allcation failed.")
+            }
+            // SAFETY: Case is safe.
+            // - Layout matches T's alignment (align_to<T> ensures this.)
+            // - ptr is non-null. checked above.
             NonNull::new(ptr.cast::<T>()).expect("allocation should not return a null pointer")
         };
 
@@ -57,6 +68,7 @@ impl<T> Storage<T> {
             .expect("layout creation should succeed even for size 0");
 
         if layout.size() != 0 {
+            // SAFETY: Padding is zeroed to avoid any weird things happening
             unsafe {
                 let padding_start = ptr.add(numel).as_ptr();
                 ptr::write_bytes(
@@ -137,12 +149,21 @@ impl<T> Drop for Storage<T> {
             let mut curr_ptr = self.ptr.as_ptr();
 
             for _ in 0..self.len {
+                // SAFETY:
+                // - `curr_ptr` is valid for drops (points to initialized `T`)
+                // - `self.len` ensures we stay within initialized bounds
+                // - No double-drop: `drop_in_place` takes ownership
                 unsafe {
                     std::ptr::drop_in_place(curr_ptr);
                     curr_ptr = curr_ptr.add(1);
                 }
             }
         }
+
+        // SAFETY:
+        // - `self.ptr` was allocated via `std::alloc::alloc` with `self.layout`
+        // - `self.layout` matches the original allocation (stored in the struct)
+        // - No elements remain to be dropped (handled above)
         unsafe { std::alloc::dealloc(self.ptr.as_ptr().cast(), self.layout) }
     }
 }
