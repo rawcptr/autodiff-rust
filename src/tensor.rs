@@ -6,8 +6,8 @@ pub trait Tensorizable<T> {
 
 impl<T> Tensorizable<T> for Vec<T> {
     fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
-        let storage = Storage::<T>::new(self.len());
-        let shape = Shape::from(1);
+        let shape = Shape::from(self.len());
+        let storage = Storage::new(self.len(), self);
 
         Ok(Tensor {
             storage,
@@ -28,8 +28,7 @@ impl<T> Tensorizable<T> for Vec<Vec<T>> {
         }
 
         let buf: Vec<T> = self.into_iter().flatten().collect();
-        let mut storage = Storage::<T>::new(buf.len());
-        storage.initialize_from_iter(buf);
+        let storage = Storage::new(buf.len(), buf);
 
         Ok(Tensor {
             storage,
