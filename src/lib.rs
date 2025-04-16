@@ -4,9 +4,6 @@ mod error;
 mod shape;
 mod storage;
 mod tensor;
-mod shape;
-mod error;
-
-pub use tensor::*;
+mod tensorizable;
 
 pub use tensor::Tensor;
