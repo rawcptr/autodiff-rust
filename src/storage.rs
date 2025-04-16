@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_zero_elements() {
-        let s = Storage::<f32>::new(0, vec![]);
+        let s = Storage::<f32>::new(0, vec![]).unwrap();
         assert_eq!(s.len(), 0);
         assert_eq!(s.layout.size(), 0);
         // Miri checks drop behavior
