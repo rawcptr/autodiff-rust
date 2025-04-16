@@ -45,6 +45,12 @@ impl<T> Storage<T> {
 
         let layout = Layout::from_size_align(size, Self::ALIGN)
             .expect("layout creation should succeed even for size 0");
+
+        unsafe {
+            let padding_start = ptr.add(numel).as_ptr();
+            ptr::write_bytes(padding_start, 0, (layout.size() / std::mem::size_of::<T>()) - numel);
+
+        }
         Self {
             ptr,
             len: numel,
