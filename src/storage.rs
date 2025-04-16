@@ -32,11 +32,10 @@ impl<T> Storage<T> {
     /// # Panics
     ///
     /// Panics if allocation fails or if the calculated layout is invalid.
-    #[must_use]
-    pub fn new(size: usize, container: impl IntoIterator<Item = T>) -> Self {
+    pub fn new(size: usize, container: impl AsRef<[T]>) -> Result<Self, TensorError> {
         let mut storage = Self::uninitialized(size);
-        storage.initialize_from_iter(container);
-        storage
+        storage.with_container(container)?;
+        Ok(storage)
     }
 
     pub fn uninitialized(numel: usize) -> Self {
@@ -87,6 +86,35 @@ impl<T> Storage<T> {
         }
     }
 
+    fn with_container(&mut self, container: impl AsRef<[T]>) -> Result<(), TensorError> {
+        let slice = container.as_ref();
+
+        debug_assert_eq!(
+            slice.as_ptr() as usize % std::mem::align_of::<T>(),
+            0,
+            "Source slice not properly aligned"
+        );
+
+        let slice_size = std::mem::size_of_val(slice);
+        let layout_size = self.layout.size();
+
+        if slice_size != layout_size {
+            return Err(TensorError::MemoryViolation {
+                why: format!("{layout_size} buffer cannot hold {slice_size} bytes"),
+            });
+        }
+
+        // SAFETY:
+        // Slice is guaranteed to be valid.
+        // Self is guaranteed to be valid (see: self::unaligned)
+        // size is guaranteed to be exact due to check above
+        unsafe {
+            std::ptr::copy_nonoverlapping(slice.as_ptr(), self.as_mut_ptr(), slice.len());
+        }
+
+        Ok(())
+    }
+
     #[inline]
     pub(crate) fn as_ptr(&self) -> *const T {
         self.ptr.as_ptr()
@@ -102,27 +130,24 @@ impl<T> Storage<T> {
         self.len
     }
 
-    fn initialize_from_iter<C>(&mut self, container: C)
-    where
-        C: IntoIterator<Item = T>,
-    {
-        let mut iter = container.into_iter();
+    /// Get a alice from the initalized region.
+    ///
+    /// # Safety
+    /// - Must ensure all elements upto `self.len` are initialized.
+    pub(crate) unsafe fn as_slice(&self) -> &[T] {
+        // SAFETY:
+        // self.len is always allocated during creation of Self
+        unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
+    }
 
-        for count in 0..self.len {
-            // SAFETY:
-            // 1. `i` is strictly less than `self.len()`, ensuring the pointer is in bounds.
-            // 2. `self.as_mut_ptr()` returns a pointer aligned for `T`. `.add(count)` maintains alignment.
-            // 3. The function contract requires the target memory to be uninitialized
-            //    or trivially droppable, making `ptr::write` safe w.r.t dropping old values.
-            match iter.next() {
-                Some(item) => unsafe { std::ptr::write(self.as_mut_ptr().add(count), item) },
-                None => return,
-            }
-        }
-
-        if iter.next().is_some() {
-            panic!("iterator yielded more items that storage can fit");
-        }
+    /// Get a mutable alice from the initalized region.
+    ///
+    /// # Safety
+    /// - Must ensure all elements upto `self.len` are initialized.
+    pub(crate) unsafe fn as_mut_slice(&mut self) -> &mut [T] {
+        // SAFETY:
+        // self.len is always allocated during creation of Self.
+        unsafe { std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len()) }
     }
 }
 
