@@ -15,7 +15,7 @@ impl<T> Tensorizable<T> for Vec<T> {
 
 impl<T> Tensorizable<T> for Vec<Vec<T>> {
     fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
-        let (dim0, dim1) = (self.len(), self[0].len());
+        let (dim0, dim1) = (self.len(), self.get(0).map_or(0, Vec::len));
         if let Some(row) = self.iter().find(|x| x.len() != dim1) {
             let expected = (self.len(), dim1).into();
             let received = (self.len(), row.len()).into();
