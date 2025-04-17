@@ -128,6 +128,7 @@ impl<T> Storage<T> {
     }
 
     #[inline]
+    /// Returns the number of elements the container can hold.
     pub(crate) fn len(&self) -> usize {
         self.len
     }
