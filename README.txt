@@ -37,7 +37,7 @@ usage:
 
 ```rust
 use autodiff::Tensor;
-let a = Tensor::new([1.0, 2.0, 3.0, 4.o])?;
+let a = Tensor::new([1.0, 2.0, 3.0, 4.0])?;
 let b: Tensor<f32> = vec![[vec![1.0, 2.0], vec![3.0, 4.0]]].to_tensor()?;
 let c = a.dot(b) // not yet implemented
 ```
