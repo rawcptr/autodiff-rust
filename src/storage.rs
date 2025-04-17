@@ -95,12 +95,14 @@ impl<T> Storage<T> {
             "Source slice not properly aligned"
         );
 
-        let slice_size = std::mem::size_of_val(slice);
-        let layout_size = self.layout.size();
+        let slice_size = slice.len();
+        let tensor_capacity = self.len();
 
-        if slice_size != layout_size {
+        if slice_size != tensor_capacity {
             return Err(TensorError::MemoryViolation {
-                why: format!("{layout_size} buffer cannot hold {slice_size} bytes"),
+                why: format!(
+                    "tried to assign {slice_size} elements to a buffer that can hold {tensor_capacity} elements"
+                ),
             });
         }
 
@@ -286,4 +288,44 @@ mod tests {
             assert_eq!(value, i as i32 * 10);
         }
     }
+
+    #[test]
+    fn test_simd_padding_zeroed() {
+        let numel = 3; // Not a multiple of 8 (for f32 AVX)
+        let storage = Storage::<f32>::uninitialized(numel);
+
+        // Check padding is zeroed
+        unsafe {
+            for i in numel..storage.layout.size() / std::mem::size_of::<f32>() {
+                assert_eq!(storage.as_ptr().add(i).read(), 0.0);
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "tried to assign 3 elements to a buffer that can hold 2 elements")]
+    fn test_overfilled_storage() {
+        let mut storage = Storage::<u8>::uninitialized(2);
+        if let TensorError::MemoryViolation { why } =
+            storage.with_container(vec![1, 2, 3]).unwrap_err()
+        {
+            panic!("{why}")
+        } else {
+            unreachable!("what")
+        }
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    // proptest! {
+    //     #[test]
+    //     fn test_any_length(len in 0..1000usize) {
+    //         let storage = Storage::<u32>::uninitialized(len);
+    //         assert_eq!(storage.len(), len);
+    //     }
+    // }
 }
