@@ -16,7 +16,7 @@ roadmap:
 - [x] avx2-friendly aligned heap storage
 - [ ] shape rewrite
 - [ ] matrix ops
-- [ ] computation graph w/ petgraph or maybe custom DAG (with features)
+- [ ] computation graph w/ petgraph (or maybe a custom DAG enabled with feature flags)
 - [ ] operator overloading
 - [ ] backward pass
 - [ ] optimization passes (e.g. buffer reuse)
