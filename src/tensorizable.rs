@@ -42,7 +42,7 @@ fn check_vec_3d<T>(data: &[Vec<Vec<T>>]) -> Result<Shape, TensorError> {
     let expected_rows = data[0].len();
     let expected_columns = data[0].first().map_or(0, Vec::len);
 
-    for plane in data.iter() {
+    for plane in data {
         let actual_rows = plane.len();
         if actual_rows != expected_rows {
             return Err(TensorError::InconsistentDimensions {
@@ -51,7 +51,7 @@ fn check_vec_3d<T>(data: &[Vec<Vec<T>>]) -> Result<Shape, TensorError> {
             });
         }
 
-        for row in plane.iter() {
+        for row in plane {
             let actual_columns = row.len();
             if actual_columns != expected_columns {
                 return Err(TensorError::InconsistentDimensions {
