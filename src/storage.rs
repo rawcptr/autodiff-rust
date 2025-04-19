@@ -23,6 +23,7 @@ pub struct Storage<T> {
 }
 
 impl<T> Storage<T> {
+    /// AVX2 32-byte alignment
     const ALIGN: usize = 32;
     /// Allocates aligned storage for `numel` elements of type `T`.
     ///
