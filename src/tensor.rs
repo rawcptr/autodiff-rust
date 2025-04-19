@@ -11,6 +11,11 @@ pub struct Tensor<T> {
 }
 
 impl<T> Tensor<T> {
+    /// Creates a new tensor from a T that implements [`Tensorizable`].
+    ///
+    /// # Errors
+    ///
+    /// Return an error if the conversion to tensor fails.
     pub fn new(data: impl Tensorizable<T>) -> Result<Self, TensorError> {
         data.to_tensor()
     }
