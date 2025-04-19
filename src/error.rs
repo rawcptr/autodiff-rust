@@ -9,11 +9,9 @@ pub enum TensorError {
 impl std::error::Error for TensorError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            TensorError::InconsistentDimensions {
-                expected: _,
-                received: _,
-            } => None,
-            TensorError::MemoryViolation { why: _ } => None,
+            TensorError::InconsistentDimensions { .. } | TensorError::MemoryViolation { .. } => {
+                None
+            }
         }
     }
 }
