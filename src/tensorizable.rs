@@ -2,7 +2,7 @@ use crate::{Tensor, error::TensorError, shape::Shape, storage::Storage};
 
 pub trait Tensorizable<T> {
     /// Trait to convert and arbitrary data into a tensor.
-    /// 
+    ///
     /// # Errors
     /// Returns an error if conversion fails.
     fn to_tensor(self) -> Result<Tensor<T>, TensorError>;
