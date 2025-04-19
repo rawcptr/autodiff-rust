@@ -54,9 +54,7 @@ impl<T> Storage<T> {
             // - Layout is valid from Layout::size_align
             // - alloc() -> null is acceptable. we just panic.
             let ptr = unsafe { std::alloc::alloc(layout) };
-            if ptr.is_null() {
-                panic!("allcation failed.")
-            }
+            assert!(!ptr.is_null(), "allcation failed.");
             // SAFETY: Case is safe.
             // - Layout matches T's alignment (align_to<T> ensures this.)
             // - ptr is non-null. checked above.
