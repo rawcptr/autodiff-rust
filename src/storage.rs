@@ -277,12 +277,14 @@ mod tests {
         let mut storage = Storage::<i32>::uninitialized(numel);
         // Write data
         for i in 0..numel {
+            // SAFETY: we only write numel elements that have allocation behind them
             unsafe {
                 storage.as_mut_ptr().add(i).write(i as i32 * 10);
             }
         }
         // Read data back
         for i in 0..numel {
+            // SAFETY: we only read within num elements that are allocated for
             let value = unsafe { storage.as_ptr().add(i).read() };
             assert_eq!(value, i as i32 * 10);
         }
@@ -293,6 +295,8 @@ mod tests {
         let numel = 3; // Not a multiple of 8 (for f32 AVX)
         let storage = Storage::<f32>::uninitialized(numel);
 
+        // SAFETY:
+        // index only within bounds.
         // Check padding is zeroed
         unsafe {
             for i in numel..storage.layout.size() / std::mem::size_of::<f32>() {
