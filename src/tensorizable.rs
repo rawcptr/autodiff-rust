@@ -40,7 +40,7 @@ fn check_vec_3d<T>(data: &[Vec<Vec<T>>]) -> Result<Shape, TensorError> {
     let planes = data.len();
 
     let expected_rows = data[0].len();
-    let expected_columns = data[0].first().map_or(0, |c| c.len());
+    let expected_columns = data[0].first().map_or(0, Vec::len);
 
     for plane in data.iter() {
         let actual_rows = plane.len();
