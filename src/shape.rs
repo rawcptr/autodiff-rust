@@ -1,5 +1,7 @@
 use std::{fmt::Display, ops::Index};
 
+use crate::error::TensorError;
+
 #[derive(Debug, Clone)]
 pub struct Shape(Vec<usize>);
 
@@ -47,6 +49,20 @@ impl Shape {
             .try_fold(0, |acc, (dim, i)| (i < dim).then_some(acc * dim + i))
             .expect("invalid indices")
     }
+
+    /// checks if two matrices can have a dot product.
+    pub fn can_matmul(&self, other: &Self) -> Result<Shape, TensorError> {
+        let (a, b) = (&self, &other);
+        match (a.ndims(), b.ndims()) {
+            // c_a = r_b -> r_a, c_b
+            (2, 2) if (a[1] == b[0]) => Ok((a[0], b[1]).into()),
+            // TODO: add 3d batching
+            _ => Err(TensorError::InvalidOp {
+                op: "matmul",
+                why: format!("invalid dimensions: a: {a}, b: {b}"),
+            }),
+        }
+    }
 }
 
 impl Index<usize> for Shape {
@@ -63,3 +79,11 @@ impl Display for Shape {
         write!(f, "Shape({:?})", &self.0)
     }
 }
+
+impl PartialEq for Shape {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for Shape {}
