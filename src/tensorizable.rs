@@ -11,7 +11,7 @@ pub trait Tensorizable<T> {
 impl<T> Tensorizable<T> for Vec<T> {
     fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
         let shape = Shape::from(self.len());
-        let storage = Storage::new(self.len(), self)?;
+        let storage = Storage::new(self)?;
 
         Ok(Tensor::from_raw(storage, shape, false, None))
     }
@@ -27,7 +27,7 @@ impl<T> Tensorizable<T> for Vec<Vec<T>> {
         }
 
         let buf: Vec<T> = self.into_iter().flatten().collect();
-        let storage = Storage::new(buf.len(), buf)?;
+        let storage = Storage::new(buf)?;
 
         Ok(Tensor::from_raw(storage, (dim0, dim1).into(), false, None))
     }
@@ -75,7 +75,7 @@ impl<T> Tensorizable<T> for Vec<Vec<Vec<T>>> {
             .flat_map(|v| v.into_iter().flatten())
             .collect();
 
-        let storage = Storage::new(buf.len(), buf)?;
+        let storage = Storage::new(buf)?;
 
         Ok(Tensor::from_raw(storage, shape, false, None))
     }
@@ -84,7 +84,7 @@ impl<T> Tensorizable<T> for Vec<Vec<Vec<T>>> {
 impl<T, const N: usize> Tensorizable<T> for [T; N] {
     fn to_tensor(self) -> Result<Tensor<T>, TensorError> {
         let shape = Shape::from(self.len());
-        let storage = Storage::new(self.len(), self)?;
+        let storage = Storage::new(self)?;
 
         Ok(Tensor::from_raw(storage, shape, false, None))
     }
@@ -95,7 +95,7 @@ impl<T, const N0: usize, const N1: usize> Tensorizable<T> for [[T; N1]; N0] {
         let shape = (N0, N1).into();
 
         let buf: Vec<T> = self.into_iter().flatten().collect();
-        let storage = Storage::new(buf.len(), buf)?;
+        let storage = Storage::new(buf)?;
 
         Ok(Tensor::from_raw(storage, shape, false, None))
     }
@@ -111,7 +111,7 @@ impl<T, const N0: usize, const N1: usize, const N2: usize> Tensorizable<T> for [
             .flat_map(|v| v.into_iter().flatten())
             .collect();
 
-        let storage = Storage::new(buf.len(), buf)?;
+        let storage = Storage::new(buf)?;
 
         Ok(Tensor::from_raw(storage, shape, false, None))
     }
