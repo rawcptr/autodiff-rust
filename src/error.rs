@@ -4,14 +4,13 @@ use crate::shape::Shape;
 pub enum TensorError {
     InconsistentDimensions { expected: Shape, received: Shape },
     MemoryViolation { why: String },
+    InvalidOp { op: &'static str, why: String },
 }
 
 impl std::error::Error for TensorError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            TensorError::InconsistentDimensions { .. } | TensorError::MemoryViolation { .. } => {
-                None
-            }
+            _ => None,
         }
     }
 }
@@ -27,6 +26,9 @@ impl std::fmt::Display for TensorError {
             }
             TensorError::MemoryViolation { why } => {
                 write!(f, "memory handling violation: {why}")
+            }
+            TensorError::InvalidOp { op, why } => {
+                write!(f, "failed to perform {op}: {why}")
             }
         }
     }
