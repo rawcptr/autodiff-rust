@@ -1,6 +1,18 @@
 [package]
-name = "autodiff-rust"
-version = "0.1.0"
+name = "autodiff"
+version = "0.0.1"
 edition = "2024"
 
-[dependencies]
+[features]
+default = []
+all = ["avx2", "neon"]
+
+avx2 = []
+neon = []
+
+[dev-dependencies]
+proptest = "1.6.0"
+
+[profile.release-debug]
+inherits = "release"
+debug = true
