@@ -18,24 +18,19 @@
 //!
 //! **Note:** This is a work-in-progress and primarily for educational purposes. It is **not** production-ready.
 
-#![feature(allocator_api, min_specialization)]
+#![feature(allocator_api)]
 #![warn(
     clippy::perf,
     clippy::correctness,
     clippy::complexity,
     clippy::style,
     clippy::suspicious,
-    // clippy::pedantic
+    clippy::pedantic
 )]
 #![deny(clippy::undocumented_unsafe_blocks, clippy::cast_possible_truncation)]
-#![allow(clippy::float_cmp)]
+#![allow(clippy::float_cmp, clippy::must_use_candidate)]
 
-mod error;
-mod shape;
-mod storage;
-mod tensor;
-mod tensorizable;
-
-// Re-export core types for convenience.
-pub use tensor::Tensor;
-pub use tensorizable::Tensorizable;
+pub mod buffer;
+pub mod error;
+pub mod shape;
+pub mod storage;
