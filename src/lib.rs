@@ -30,7 +30,7 @@
 #![deny(clippy::undocumented_unsafe_blocks, clippy::cast_possible_truncation)]
 #![allow(clippy::float_cmp, clippy::must_use_candidate)]
 
-pub mod buffer;
 pub mod error;
+pub mod memory;
 pub mod shape;
 pub mod storage;
