@@ -1,9 +1,9 @@
 //! Provides raw, aligned memory storage [`Storage`] for tensor data.
 //! Handles allocation, deallocation, and basic access, with memory alignment.
 
-use std::rc::Rc;
+use crate::memory::policy::SimdAlignment;
 
-use crate::buffer::{Buffer, BufferBuilder};
+use crate::memory::buffer::{Buffer, BufferBuilder};
 
 /// `Storage<T, A>` is a partially-initialized memory container.
 ///
@@ -11,7 +11,7 @@ use crate::buffer::{Buffer, BufferBuilder};
 /// - The uninitialized tail (if any) of the `Buffer` is never exposed directly.
 pub struct Storage<T, A = std::alloc::Global>
 where
-    A: std::alloc::Allocator,
+    A: std::alloc::Allocator + Clone,
 {
     /// See [`crate::buffer::Buffer`].
     buffer: Buffer<T, A>,
@@ -19,12 +19,12 @@ where
     init: usize,
 }
 
-impl<T, A: std::alloc::Allocator> Storage<T, A> {
+impl<T, A: std::alloc::Allocator + Clone> Storage<T, A> {
     /// Creates a new storage buffer for `numel` elements using the given allocator.
     ///
     /// Allocated memory is uninitialized. no elements are considered initialized yet.
-    pub fn new(numel: usize, alloc: &Rc<A>) -> Self {
-        let buffer: Buffer<T, A> = BufferBuilder::new(numel).build(alloc);
+    pub fn new(numel: usize, alloc: A) -> Self {
+        let buffer: Buffer<T, A> = BufferBuilder::<_, SimdAlignment>::new(numel).build(alloc);
         Self { buffer, init: 0 }
     }
 
@@ -61,7 +61,7 @@ impl<T, A: std::alloc::Allocator> Storage<T, A> {
         self.init += 1;
     }
 
-    /// Unsafely sets `init = len`. 
+    /// Unsafely sets `init = len`.
     /// Caller must ensure elements `[0..len)` are valid.
     ///
     /// # Safety
@@ -174,12 +174,15 @@ impl<T, A: std::alloc::Allocator> Storage<T, A> {
     }
 }
 
-impl<T: Clone, A: std::alloc::Allocator> Storage<T, A> {
+impl<T: Clone, A: std::alloc::Allocator + Clone> Storage<T, A> {
     /// Creates a new storage buffer and clones each element from the given slice.
     ///
     /// All elements are immediately initialized.
-    fn from_slice(slice: &[T], alloc: &Rc<A>) -> Self {
-        let mut buffer: Buffer<T, A> = BufferBuilder::new(slice.len()).build(alloc);
+    pub fn from_slice(slice: &[T], alloc: A) -> Self {
+        let mut buffer: Buffer<T, _> = {
+            let numel = slice.len();
+            BufferBuilder::<_, SimdAlignment>::new(numel).build(alloc)
+        };
         let mut init = 0;
         for (i, val) in slice.iter().enumerate() {
             let val = val.clone();
@@ -199,8 +202,8 @@ impl<T: Clone, A: std::alloc::Allocator> Storage<T, A> {
     /// Creates a new storage buffer of `numel` elements, each cloned from `value`.
     ///
     /// All elements are immediately initialized.
-    pub fn filled_with(numel: usize, value: T, alloc: &Rc<A>) -> Self {
-        let mut buffer: Buffer<T, A> = BufferBuilder::new(numel).build(alloc);
+    pub fn filled_with(numel: usize, value: T, alloc: A) -> Self {
+        let mut buffer: Buffer<T, _> = BufferBuilder::<_, SimdAlignment>::new(numel).build(alloc);
         let mut init = 0;
         for i in 0..numel {
             let val = value.clone();
@@ -219,7 +222,7 @@ impl<T: Clone, A: std::alloc::Allocator> Storage<T, A> {
     }
 }
 
-impl<T, A: std::alloc::Allocator> Drop for Storage<T, A> {
+impl<T, A: std::alloc::Allocator + Clone> Drop for Storage<T, A> {
     fn drop(&mut self) {
         // Drop all initialized elements
         for i in 0..self.init {
