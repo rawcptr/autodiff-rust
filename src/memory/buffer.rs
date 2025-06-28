@@ -1,30 +1,33 @@
 use std::{
     alloc::{Allocator, Layout},
+    marker::PhantomData,
     ptr::NonNull,
-    rc::Rc,
 };
 
-/// `x86_64` AVX2 32-byte alignment
-#[allow(unused)]
-pub const AVX2_ALIGN: usize = 32;
-
-/// `AArch64` NEON 16-byte alignment
-#[allow(unused)]
-pub const NEON_ALIGN: usize = 16;
+use crate::memory::{
+    buffer::utils::zero_trailing_bytes,
+    policy::{
+        AlignmentStrategy, CustomAlignment, InitStrategy, SimdAlignment, Uninitialized, Zeroed,
+    },
+};
 
 /// Raw, aligned heap storage for elements of type `T`.
 ///
 /// Owns the allocated memory and handles deallocation.
+/// 
 /// Ensures specific memory alignment with AVX and NEON requirements.
-/// defaulting to 32 bytes for `x86_64` with AVX2 feature
-/// and 16 bytes for `aarch64` with NEON feature.
+/// defaulting to 32 bytes for `x86_64` when AVX2 is enabled.
+/// and 16 bytes for `aarch64` when NEON is enabled.
+/// Defaults to `std::mem::size_of::<T>()` otherwise.
 ///
 /// # Note
 ///
-/// `RawStorage` only drops the underlying allocation. It will **NOT** drop the `T` present in the allocated memory.
-/// This storage is intended to be a low-surface-area unsafe pool of aligned memory that can later be layered on with a safe abstraction
+/// `RawStorage` only drops the underlying allocation. 
+/// It will **NOT** drop the `T` present in the allocated memory.
+/// This storage is intended to be a low-surface-area unsafe pool 
+/// of aligned memory that can later be layered on with a safe abstraction
 #[derive(Debug)]
-pub struct Buffer<T, Alloc: Allocator + ?Sized> {
+pub struct Buffer<T, A: Allocator + Clone> {
     /// Pointer to start of allocation.
     ptr: NonNull<T>,
     /// Number of elements originally requested (`numel`).
@@ -32,134 +35,103 @@ pub struct Buffer<T, Alloc: Allocator + ?Sized> {
     /// Full layout used during allocation (includes padding).
     layout: Layout,
     /// Reference to underlying storage allocator.
-    allocator: Rc<Alloc>,
+    allocator: A,
 }
 
 /// Builder for constructing a [`Buffer`] with custom settings.
 ///
 /// This allows customizing number of elements, memory alignment,
 /// and whether the memory should be zero-initialized.
-pub struct BufferBuilder {
+pub struct BufferBuilder<I, A>
+where
+    A: AlignmentStrategy,
+    I: InitStrategy,
+{
     numel: usize,
-    zeroed: bool,
-    align: usize,
+    _marker: PhantomData<(A, I)>,
 }
 
-impl BufferBuilder {
+// The default constructor sets default policies.
+// The return type is explicit: BufferBuilder<Uninitialized, SimdAlignment>
+impl BufferBuilder<Uninitialized, SimdAlignment> {
     pub fn new(numel: usize) -> Self {
         Self {
             numel,
-            zeroed: false,
-            align: std::mem::align_of::<()>(),
+            _marker: PhantomData,
         }
-    }
-
-    /// If true, the buffer will be allocated with all bytes set to zero.
-    #[must_use]
-    pub fn zeroed(mut self, z: bool) -> Self {
-        self.zeroed = z;
-        self
-    }
-
-    /// Override default alignment (see [`Buffer`] docs for platform defaults).
-    ///
-    /// Must be a power of two.
-    #[must_use]
-    pub fn with_alignment(mut self, align: usize) -> Self {
-        self.align = align;
-        self
-    }
-
-    pub fn build<T, A: Allocator + ?Sized>(self, alloc: &Rc<A>) -> Buffer<T, A> {
-        let Self { numel, zeroed, .. } = self;
-        let align = if self.align == std::mem::align_of::<()>() {
-            Self::alignment::<T>()
-        } else {
-            self.align
-        };
-
-        Buffer::with_alignment(numel, align, zeroed, alloc)
-    }
-
-    const fn alignment<T>() -> usize {
-        let ret = if cfg!(all(target_feature = "neon", target_arch = "aarch64")) {
-            NEON_ALIGN
-        } else if cfg!(all(
-            target_feature = "avx2",
-            any(target_arch = "x86", target_arch = "x86_64")
-        )) {
-            AVX2_ALIGN
-        } else {
-            std::mem::align_of::<T>()
-        };
-        assert!(ret.is_power_of_two());
-        ret
     }
 }
 
-impl<T, A: Allocator + ?Sized> Buffer<T, A> {
+impl<I: InitStrategy, A: AlignmentStrategy> BufferBuilder<I, A> {
+    /// If true, the buffer will be allocated with all bytes set to zero.
+    #[must_use]
+    pub fn zeroed(self) -> BufferBuilder<Zeroed, A> {
+        BufferBuilder::<Zeroed, A> {
+            numel: self.numel,
+            _marker: PhantomData,
+        }
+    }
+    #[must_use]
+    pub fn with_alignment<const ALIGN: usize>(self) -> BufferBuilder<I, CustomAlignment<ALIGN>> {
+        BufferBuilder {
+            numel: self.numel,
+            _marker: PhantomData,
+        }
+    }
+
+    #[must_use]
+    pub fn build<T, Alloc: Allocator + Clone>(self, alloc: Alloc) -> Buffer<T, Alloc> {
+        Buffer::with_alignment::<I, A>(self.numel, alloc)
+    }
+}
+
+impl<T, A: Allocator + Clone> Buffer<T, A> {
     /// Returns a `RawStorage` with specified attributes.
     ///
     /// # Arguments
     ///
     /// * `numel` - number of elements to allocate for.
-    /// * `align` - required alignment of memory.
-    /// * `zeroed` - if allocated memory should be zeroed out.
     /// * `allocator` - The allocator to use.
     ///
     /// # Panics
     ///
     /// Panics if `T` is a Zero-Sized Type, `numel` is 0, or `align` is not a power of two.
-    fn with_alignment(numel: usize, align: usize, zeroed: bool, allocator: &Rc<A>) -> Self {
+    fn with_alignment<I: InitStrategy, Align: AlignmentStrategy>(
+        numel: usize,
+        allocator: A,
+    ) -> Self {
         assert!((std::mem::size_of::<T>() != 0), "ZSTs are not supported.");
         assert!(
             (numel != 0),
             "zero-sized buffers (numel=0) are not supported."
         );
-        assert!(align.is_power_of_two(), "Alignment must be a power of two");
 
+        let align = Align::alignment::<T>();
         let size = self::utils::align_to::<T>(numel, align);
-
         let layout = Layout::from_size_align(size, align).unwrap_or_else(|_| {
             panic!("layout creation should have valid alignment: {align} and length: {numel}")
         });
 
-        let ptr = {
-            if zeroed {
-                // SAFETY:
-                // - layout is non-zero size and valid alignment (guaranteed by assertions).
-                // - Trusting the allocator to return a valid pointer on success.
-                allocator
-                    .allocate_zeroed(layout)
-                    .unwrap_or_else(|_| panic!("allocator failed to allocate layout: {layout:#?}"))
-                    .cast()
-            } else {
-                // SAFETY:
-                // - layout is non-zero size and valid alignment (guaranteed by assertions).
-                // - Trusting the allocator to return a valid pointer on success.
-                let tmp: NonNull<T> = allocator
-                    .allocate(layout)
-                    .unwrap_or_else(|_| panic!("allocator failed to allocate layout: {layout:#?}"))
-                    .cast();
+        let ptr = I::allocate(allocator.clone(), layout)
+            .unwrap_or_else(|_| panic!("allocator failed to allocate valid layout: {layout:#?}"));
 
-                self::utils::zero_trailing_bytes::<T>(tmp.as_ptr().cast(), numel, size);
-                tmp
-            }
-        };
         #[cfg(debug_assertions)]
         // SAFETY:
         // - this code is only ran in debug builds.
         // - `ptr.as_ptr()` is a valid non-null aligned pointer to allocated memory.
         // - `size` is the number of *bytes* in the array.
         unsafe {
-            std::ptr::write_bytes(ptr.as_ptr(), 0xAB, size);
+            // poison buffer
+            std::ptr::write_bytes(ptr.as_ptr().cast::<u8>(), 0xAB, size);
         }
 
+        zero_trailing_bytes::<T>(ptr.as_ptr().cast::<u8>(), numel, size);
+
         Buffer {
-            ptr,
+            ptr: ptr.cast(),
             layout,
             numel,
-            allocator: allocator.clone(),
+            allocator,
         }
     }
 
@@ -230,7 +202,7 @@ impl<T, A: Allocator + ?Sized> Buffer<T, A> {
     }
 }
 
-impl<T, A: Allocator + ?Sized> Drop for Buffer<T, A> {
+impl<T, A: Allocator + Clone> Drop for Buffer<T, A> {
     /// Deallocates the buffer. Does **not** drop any `T`s.
     fn drop(&mut self) {
         // SAFETY:
